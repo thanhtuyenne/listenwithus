@@ -12,18 +12,12 @@ declare const YT: any;
 const App: React.FC = () => {
   const [player, setPlayer] = useState<any>(null);
   const [currentRoom, setCurrentRoom] = useState<string | null>(null);
-  const [isSyncUpdate, setIsSyncUpdate] = useState(false);
   const [lastUpdateTime, setLastUpdateTime] = useState(0);
   const [connectionStatus, setConnectionStatus] = useState("Disconnected");
   const [syncStatus, setSyncStatus] = useState("Not synced");
 
   useEffect(() => {
-    initializeYouTubePlayer(
-      setPlayer,
-      setConnectionStatus,
-      setSyncStatus,
-      setIsSyncUpdate
-    );
+    initializeYouTubePlayer(setPlayer, setConnectionStatus, setSyncStatus);
 
     return () => {
       socket.off("connect");
