@@ -1,4 +1,5 @@
 import { io } from 'socket.io-client';
+import toast from 'react-hot-toast';
 
 export const socket = io({
     reconnectionAttempts: 5,
@@ -30,7 +31,7 @@ export function initializeYouTubePlayer(
                     setPlayer(player);
                 },
                 onStateChange: (event: any) => handlePlayerStateChange(event, player),
-                onError: (event: any) => showError(`Video player error: ${event.data}`),
+                onError: (event: any) => toast.error(`Video player error: ${event.data}`),
             },
         });
 
@@ -61,21 +62,41 @@ function handlePlayerStateChange(event: any, player: any) {
     emitVideoState(videoId, timestamp, isPlaying);
 }
 
+
 export function joinRoom(setCurrentRoom: (room: string) => void) {
     const roomId = (document.getElementById('roomId') as HTMLInputElement).value.trim();
     if (!roomId) {
-        showError('Please enter a room ID');
+        toast.error('Please enter a room ID');
         return;
     }
 
     setCurrentRoom(roomId);
     socket.emit('joinRoom', roomId);
+    toast.success("Join room successfully");
 }
+
+export function leaveRoom(
+    currentRoom: string | null,
+    setCurrentRoom: (room: string | null) => void,
+    setConnectionStatus: (status: string) => void
+) {
+    if (!currentRoom) {
+        toast.error('You are not in any room');
+        return;
+    }
+
+    socket.emit('leaveRoom', currentRoom, () => {
+        setCurrentRoom(null);
+        setConnectionStatus('Disconnected');
+        toast.success('You have left the room');
+    });
+}
+
 
 export function loadVideo(player: any, currentRoom: string | null) {
     const videoId = (document.getElementById('videoId') as HTMLInputElement).value.trim();
     if (!videoId || !currentRoom) {
-        showError('Please enter video ID and join a room first');
+        toast.error('Please enter video ID and join a room first');
         return;
     }
 
@@ -127,15 +148,4 @@ function syncPlayerState(
     }
 
     setTimeout(() => setSyncStatus('Synced'), 1000);
-}
-
-function showError(message: string) {
-    const errorDiv = document.getElementById('errorMessage');
-    if (errorDiv) {
-        errorDiv.textContent = message;
-        errorDiv.style.display = 'block';
-        setTimeout(() => {
-            errorDiv.style.display = 'none';
-        }, 5000);
-    }
 }
