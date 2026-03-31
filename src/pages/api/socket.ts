@@ -298,6 +298,16 @@ export default function handler(req: IncomingMessage, res: NextApiResponseWithSo
         }
       });
 
+      socket.on("chatMessage", ({ roomId, nickname, message }: { roomId: string; nickname: string; message: string }) => {
+        if (!rooms.get(roomId)) return;
+        io.to(roomId).emit("chatMessage", { nickname, message, timestamp: Date.now() });
+      });
+
+      socket.on("emojiReaction", ({ roomId, nickname, emoji }: { roomId: string; nickname: string; emoji: string }) => {
+        if (!rooms.get(roomId)) return;
+        io.to(roomId).emit("emojiReaction", { nickname, emoji });
+      });
+
       socket.on("heartbeat", ({ roomId, timestamp }: { roomId: string; timestamp: number }) => {
         const room = rooms.get(roomId);
         if (!room || !room.isPlaying) return;
