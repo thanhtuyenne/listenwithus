@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /d/CODE/WEB_APP/YOUTUBE_PARTY_VITE/listenwithus -type f -name *.spec.*)",
+      "Bash(ls:*)",
+      "Bash(npm run:*)",
+      "Bash(npx tsc:*)",
+      "Bash(bash:*)"
+    ]
+  }
+}
