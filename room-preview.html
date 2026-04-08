@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ListenWithUs — Room Design Preview</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg-950:   #03071a;
+    --bg-900:   #0d1117;
+    --bg-800:   #111827;
+    --bg-700:   #1f2937;
+    --bg-600:   #374151;
+    --green:    #22c55e;
+    --green-d:  #16a34a;
+    --green-bg: #052e16;
+    --sky:      #38bdf8;
+    --sky-bg:   #0c1a2e;
+    --yellow:   #facc15;
+    --red:      #f87171;
+    --blue:     #60a5fa;
+    --text-1:   #f9fafb;
+    --text-2:   #9ca3af;
+    --text-3:   #6b7280;
+    --text-4:   #4b5563;
+  }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg-950);
+    color: var(--text-1);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ─── NAVBAR ─────────────────────────────────────────────── */
+  .navbar {
+    height: 60px;
+    background: var(--bg-900);
+    border-bottom: 1px solid var(--bg-700);
+    display: flex;
+    align-items: center;
+    padding: 0 24px;
+    gap: 12px;
+    position: sticky;
+    top: 0;
+    z-index: 30;
+  }
+  .leave-btn {
+    display: flex; align-items: center; gap: 6px;
+    padding: 7px 14px;
+    border-radius: 8px;
+    background: #1c0a0a;
+    border: 1px solid #991b1b;
+    color: var(--red);
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    letter-spacing: 0.5px;
+    transition: background 0.2s;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .leave-btn:hover { background: #2d1010; }
+  .logo {
+    flex: 1;
+    text-align: center;
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--green);
+    letter-spacing: 3px;
+    user-select: none;
+  }
+  .status-pills {
+    display: flex; align-items: center; gap: 8px;
+  }
+  .pill {
+    display: flex; align-items: center; gap: 6px;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  .pill-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .pill-green  { background: var(--green-bg); border: 1px solid #14532d; color: var(--green); }
+  .pill-blue   { background: var(--sky-bg);   border: 1px solid #1e3a5f; color: var(--sky); }
+  .pill-yellow { background: #1c1500; border: 1px solid #713f12; color: var(--yellow); font-weight: 700; }
+  .pill-room   { background: #0f172a; border: 1px solid #1e3a5f; color: var(--sky); cursor: pointer; transition: background 0.2s; }
+  .pill-room:hover { background: #162032; }
+  .pill-sync   { background: #0c1a2e; border: 1px solid #1e3a5f; color: var(--blue); }
+
+  /* ─── MAIN CONTENT ───────────────────────────────────────── */
+  .page-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px 24px 40px;
+    gap: 16px;
+  }
+
+  /* ─── VIDEO CONTAINER ────────────────────────────────────── */
+  .video-wrap {
+    width: 100%;
+    max-width: 900px;
+    aspect-ratio: 16/9;
+    background: #0a0a0a;
+    border: 1px solid var(--bg-700);
+    border-radius: 12px;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 0 60px rgba(34,197,94,0.12);
+  }
+  .video-placeholder {
+    width: 100%; height: 100%;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 12px;
+    background: linear-gradient(135deg, #0f0f0f 0%, #0a0a12 100%);
+  }
+  .play-ring {
+    width: 72px; height: 72px;
+    border-radius: 50%;
+    border: 2px solid rgba(34,197,94,0.5);
+    background: rgba(34,197,94,0.12);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 26px;
+    color: var(--green);
+  }
+  .video-label { color: var(--text-4); font-size: 13px; }
+  .floating-emojis {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    overflow: hidden;
+  }
+  .float-emoji {
+    position: absolute;
+    bottom: 10px;
+    font-size: 36px;
+    animation: floatUp 3s ease-out forwards;
+    pointer-events: none;
+    user-select: none;
+  }
+  @keyframes floatUp {
+    0%   { transform: translateY(0) scale(1);    opacity: 1; }
+    80%  { opacity: 1; }
+    100% { transform: translateY(-200px) scale(1.5); opacity: 0; }
+  }
+
+  /* ─── CONTROLS BAR ───────────────────────────────────────── */
+  .controls-bar {
+    width: 100%;
+    max-width: 900px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .url-input {
+    flex: 1;
+    height: 42px;
+    background: #0f172a;
+    border: 1px solid var(--green);
+    border-radius: 8px;
+    padding: 0 14px;
+    color: var(--text-1);
+    font-size: 13px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .url-input::placeholder { color: var(--text-4); }
+  .url-input:focus { border-color: #4ade80; box-shadow: 0 0 0 3px rgba(34,197,94,0.1); }
+  .btn-load {
+    height: 42px;
+    padding: 0 20px;
+    background: var(--green);
+    border: none;
+    border-radius: 8px;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s;
+    font-family: inherit;
+    white-space: nowrap;
+  }
+  .btn-load:hover { background: var(--green-d); }
+  .btn-sync {
+    height: 42px;
+    padding: 0 16px;
+    background: var(--sky-bg);
+    border: 1px solid var(--sky);
+    border-radius: 8px;
+    color: var(--sky);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s;
+    font-family: inherit;
+    white-space: nowrap;
+  }
+  .btn-sync:hover { background: #112233; }
+
+  /* ─── EMOJI BAR ──────────────────────────────────────────── */
+  .emoji-bar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: var(--bg-900);
+    border: 1px solid var(--bg-700);
+    border-radius: 28px;
+    padding: 6px 16px;
+  }
+  .emoji-btn {
+    width: 44px; height: 36px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+    border-radius: 18px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    transition: transform 0.15s, background 0.15s;
+    user-select: none;
+  }
+  .emoji-btn:hover  { transform: scale(1.3); background: rgba(255,255,255,0.05); }
+  .emoji-btn:active { transform: scale(1.1); }
+  .emoji-more {
+    width: 36px; height: 36px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 18px;
+    background: var(--bg-700);
+    border: none;
+    cursor: pointer;
+    color: var(--text-3);
+    font-size: 16px;
+    transition: background 0.2s, color 0.2s;
+    margin-left: 4px;
+  }
+  .emoji-more:hover { background: var(--bg-600); color: var(--text-1); }
+
+  /* ─── CHAT FAB ───────────────────────────────────────────── */
+  .chat-fab {
+    position: fixed;
+    bottom: 28px; right: 28px;
+    z-index: 40;
+    width: 52px; height: 52px;
+    border-radius: 50%;
+    background: var(--green);
+    border: none;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+    box-shadow: 0 4px 20px rgba(34,197,94,0.4);
+    transition: background 0.2s, transform 0.2s;
+  }
+  .chat-fab:hover { background: var(--green-d); transform: scale(1.05); }
+  .chat-fab-badge {
+    position: absolute;
+    top: -2px; right: -2px;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: #ef4444;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    display: none;
+  }
+
+  /* ─── CHAT PANEL ─────────────────────────────────────────── */
+  .chat-backdrop {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.45);
+    backdrop-filter: blur(4px);
+    z-index: 45;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.3s;
+  }
+  .chat-backdrop.open { opacity: 1; pointer-events: all; }
+  .chat-panel {
+    position: fixed;
+    top: 0; right: 0;
+    height: 100%;
+    width: 320px;
+    background: var(--bg-800);
+    border-left: 1px solid var(--bg-700);
+    box-shadow: -4px 0 40px rgba(0,0,0,0.5);
+    z-index: 50;
+    display: flex; flex-direction: column;
+    transform: translateX(100%);
+    transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+  }
+  .chat-panel.open { transform: translateX(0); }
+  .chat-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--bg-700);
+    flex-shrink: 0;
+  }
+  .chat-title {
+    font-size: 13px; font-weight: 700;
+    color: var(--green); letter-spacing: 1px;
+  }
+  .chat-header-right {
+    display: flex; align-items: center; gap: 10px;
+  }
+  .chat-nick { font-size: 12px; color: var(--text-3); }
+  .chat-close {
+    background: none; border: none;
+    color: var(--text-3); font-size: 16px; cursor: pointer;
+    padding: 2px 4px; border-radius: 4px;
+    transition: color 0.2s;
+  }
+  .chat-close:hover { color: var(--text-1); }
+  .chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .chat-messages::-webkit-scrollbar { width: 4px; }
+  .chat-messages::-webkit-scrollbar-thumb { background: var(--bg-600); border-radius: 2px; }
+  .chat-empty {
+    color: var(--text-4); font-size: 13px;
+    text-align: center; margin-top: 48px;
+    line-height: 1.8;
+  }
+  .msg-wrap { display: flex; flex-direction: column; }
+  .msg-wrap.self { align-items: flex-end; }
+  .msg-wrap.other { align-items: flex-start; }
+  .msg-nick { font-size: 11px; color: var(--text-3); margin-bottom: 3px; padding: 0 4px; }
+  .msg-bubble {
+    max-width: 88%; padding: 8px 12px;
+    border-radius: 16px; font-size: 13px; line-height: 1.4;
+    word-break: break-word;
+  }
+  .msg-wrap.self  .msg-bubble { background: #16803a; color: #fff; border-bottom-right-radius: 4px; }
+  .msg-wrap.other .msg-bubble { background: var(--bg-700); color: var(--text-1); border-bottom-left-radius: 4px; }
+  .chat-input-row {
+    display: flex; gap: 8px; padding: 12px;
+    border-top: 1px solid var(--bg-700);
+    flex-shrink: 0;
+  }
+  .chat-input {
+    flex: 1;
+    background: var(--bg-700);
+    border: none;
+    border-radius: 20px;
+    padding: 9px 16px;
+    color: var(--text-1);
+    font-size: 13px;
+    font-family: inherit;
+    outline: none;
+    transition: box-shadow 0.2s;
+  }
+  .chat-input::placeholder { color: var(--text-4); }
+  .chat-input:focus { box-shadow: 0 0 0 2px rgba(34,197,94,0.3); }
+  .chat-send {
+    width: 38px; height: 38px;
+    border-radius: 50%;
+    background: var(--green);
+    border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px; color: #fff;
+    transition: background 0.2s;
+    flex-shrink: 0;
+  }
+  .chat-send:hover { background: var(--green-d); }
+  .chat-send:disabled { background: var(--bg-600); color: var(--text-4); cursor: default; }
+
+  /* ─── EMOJI PICKER MODAL ─────────────────────────────────── */
+  .picker-backdrop {
+    position: fixed; inset: 0;
+    z-index: 55;
+    display: flex; align-items: flex-end; justify-content: center;
+    padding-bottom: 40px;
+    background: rgba(0,0,0,0.5);
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.2s;
+  }
+  .picker-backdrop.open { opacity: 1; pointer-events: all; }
+  .emoji-picker {
+    background: #1e293b;
+    border: 1px solid var(--bg-600);
+    border-radius: 20px;
+    padding: 16px;
+    width: 300px;
+    box-shadow: 0 -4px 40px rgba(0,0,0,0.5);
+    transform: translateY(20px);
+    transition: transform 0.2s;
+  }
+  .picker-backdrop.open .emoji-picker { transform: translateY(0); }
+  .picker-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 12px;
+  }
+  .picker-title { font-size: 13px; font-weight: 600; color: var(--text-2); }
+  .picker-close {
+    background: none; border: none; color: var(--text-3);
+    font-size: 16px; cursor: pointer; padding: 2px 4px; border-radius: 4px;
+  }
+  .picker-close:hover { color: var(--text-1); }
+  .picker-grid {
+    display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px;
+  }
+  .picker-emoji {
+    height: 40px; border-radius: 10px;
+    background: none; border: none; cursor: pointer;
+    font-size: 22px;
+    transition: transform 0.15s, background 0.15s;
+  }
+  .picker-emoji:hover { transform: scale(1.3); background: rgba(255,255,255,0.07); }
+
+  /* ─── NICKNAME MODAL ─────────────────────────────────────── */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    z-index: 60;
+    background: rgba(0,0,0,0.85);
+    backdrop-filter: blur(6px);
+    display: flex; align-items: center; justify-content: center;
+    transition: opacity 0.25s;
+  }
+  .modal-overlay.hidden { opacity: 0; pointer-events: none; }
+  .modal-card {
+    background: var(--bg-800);
+    border: 1px solid var(--bg-700);
+    border-radius: 20px;
+    padding: 36px 32px;
+    width: 340px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+    display: flex; flex-direction: column; gap: 8px;
+    transform: scale(1); transition: transform 0.25s;
+  }
+  .modal-overlay.hidden .modal-card { transform: scale(0.95); }
+  .modal-title {
+    font-size: 24px; font-weight: 800;
+    color: var(--green); text-align: center;
+    letter-spacing: 1px;
+  }
+  .modal-sub {
+    font-size: 13px; color: var(--text-3);
+    text-align: center; margin-bottom: 12px;
+  }
+  .modal-input {
+    width: 100%;
+    background: var(--bg-700);
+    border: 2px solid var(--bg-600);
+    border-radius: 10px;
+    padding: 11px 14px;
+    color: var(--text-1); font-size: 14px;
+    font-family: inherit; outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    margin-bottom: 12px;
+  }
+  .modal-input::placeholder { color: var(--text-4); }
+  .modal-input:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(34,197,94,0.15); }
+  .modal-btn {
+    width: 100%;
+    padding: 12px;
+    background: var(--green);
+    border: none; border-radius: 10px;
+    color: #fff; font-size: 14px; font-weight: 700;
+    cursor: pointer; font-family: inherit;
+    transition: background 0.2s, transform 0.1s;
+  }
+  .modal-btn:hover { background: var(--green-d); }
+  .modal-btn:active { transform: scale(0.98); }
+  .modal-btn:disabled { background: var(--bg-600); color: var(--text-4); cursor: default; }
+
+  /* ─── TOAST ──────────────────────────────────────────────── */
+  .toast-container {
+    position: fixed; bottom: 96px; right: 28px;
+    z-index: 70;
+    display: flex; flex-direction: column; gap: 8px;
+    pointer-events: none;
+  }
+  .toast {
+    background: var(--bg-800);
+    border: 1px solid var(--bg-600);
+    border-radius: 10px;
+    padding: 10px 16px;
+    font-size: 13px; color: var(--text-1);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+    animation: toastIn 0.3s ease-out, toastOut 0.3s ease-in 2.5s forwards;
+  }
+  .toast.success { border-color: #14532d; color: var(--green); }
+  @keyframes toastIn  { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+  @keyframes toastOut { from { opacity:1; } to { opacity:0; } }
+
+  /* ─── SECTION LABELS (preview only) ─────────────────────── */
+  .preview-note {
+    font-size: 11px; color: var(--text-4);
+    text-align: center; margin-top: -8px;
+    letter-spacing: 0.5px;
+  }
+</style>
+</head>
+<body>
+
+<!-- ── NICKNAME MODAL ──────────────────────────────────────── -->
+<div class="modal-overlay" id="nicknameModal">
+  <div class="modal-card">
+    <div class="modal-title">Welcome! 👋</div>
+    <div class="modal-sub">Choose a nickname to join the room</div>
+    <input
+      class="modal-input" id="nicknameInput"
+      placeholder="Your nickname…" maxlength="24" autofocus
+    />
+    <button class="modal-btn" id="joinBtn" disabled onclick="joinRoom()">Join Room</button>
+  </div>
+</div>
+
+<!-- ── NAVBAR ──────────────────────────────────────────────── -->
+<nav class="navbar">
+  <a class="leave-btn" href="#" onclick="return false">← LEAVE</a>
+  <div class="logo">LISTEN WITH US</div>
+  <div class="status-pills">
+    <div class="pill pill-green"><span class="pill-dot" style="background:#22c55e"></span>Connected</div>
+    <div class="pill pill-room" onclick="copyRoom()" title="Click to copy room link">
+      ⌂&nbsp; a3f9c2b1… &nbsp;⎘
+    </div>
+    <div class="pill pill-yellow">♛ &nbsp;Host</div>
+    <div class="pill pill-sync"><span class="pill-dot" style="background:#60a5fa"></span>Synced</div>
+  </div>
+</nav>
+
+<!-- ── MAIN CONTENT ────────────────────────────────────────── -->
+<main class="page-content">
+
+  <!-- Video -->
+  <div class="video-wrap" id="videoWrap">
+    <div class="video-placeholder">
+      <div class="play-ring">▶</div>
+      <span class="video-label">YouTube Player</span>
+    </div>
+    <div class="floating-emojis" id="floatingEmojis"></div>
+  </div>
+
+  <!-- Controls bar -->
+  <div class="controls-bar">
+    <input class="url-input" type="text" placeholder="YouTube URL or video ID…" />
+    <button class="btn-load">Load</button>
+    <button class="btn-sync" onclick="showToast('⟳ Force sync sent', 'success')">⟳ Force Sync</button>
+  </div>
+
+  <p class="preview-note">Hold any emoji 500ms to open full picker &nbsp;·&nbsp; Quick tap to send</p>
+
+  <!-- Emoji bar -->
+  <div class="emoji-bar">
+    <button class="emoji-btn" onclick="sendEmoji('👍')">👍</button>
+    <button class="emoji-btn" onclick="sendEmoji('❤️')">❤️</button>
+    <button class="emoji-btn" onclick="sendEmoji('😂')">😂</button>
+    <button class="emoji-btn" onclick="sendEmoji('😮')">😮</button>
+    <button class="emoji-btn" onclick="sendEmoji('😢')">😢</button>
+    <button class="emoji-btn" onclick="sendEmoji('🔥')">🔥</button>
+    <button class="emoji-more" onclick="openPicker()" title="More emojis">＋</button>
+  </div>
+
+</main>
+
+<!-- ── CHAT FAB ────────────────────────────────────────────── -->
+<button class="chat-fab" onclick="toggleChat()" title="Chat">
+  💬
+  <span class="chat-fab-badge" id="unreadBadge">3</span>
+</button>
+
+<!-- ── CHAT BACKDROP ──────────────────────────────────────── -->
+<div class="chat-backdrop" id="chatBackdrop" onclick="toggleChat()"></div>
+
+<!-- ── CHAT PANEL ─────────────────────────────────────────── -->
+<div class="chat-panel" id="chatPanel">
+  <div class="chat-header">
+    <span class="chat-title">CHAT</span>
+    <div class="chat-header-right">
+      <span class="chat-nick" id="chatNick">You</span>
+      <button class="chat-close" onclick="toggleChat()">✕</button>
+    </div>
+  </div>
+  <div class="chat-messages" id="chatMessages">
+    <div class="msg-wrap other">
+      <span class="msg-nick">Alex</span>
+      <div class="msg-bubble">hey, just joined! what are we watching? 👀</div>
+    </div>
+    <div class="msg-wrap other">
+      <span class="msg-nick">Minh</span>
+      <div class="msg-bubble">this song is 🔥🔥🔥</div>
+    </div>
+    <div class="msg-wrap self">
+      <span class="msg-nick" id="selfNick">You</span>
+      <div class="msg-bubble">haha agreed!! love this track</div>
+    </div>
+  </div>
+  <div class="chat-input-row">
+    <input
+      class="chat-input" id="chatInput"
+      placeholder="Type a message…"
+      onkeydown="if(event.key==='Enter') sendMessage()"
+      oninput="document.getElementById('sendBtn').disabled=!this.value.trim()"
+    />
+    <button class="chat-send" id="sendBtn" disabled onclick="sendMessage()">➤</button>
+  </div>
+</div>
+
+<!-- ── EMOJI PICKER ────────────────────────────────────────── -->
+<div class="picker-backdrop" id="pickerBackdrop" onclick="closePicker()">
+  <div class="emoji-picker" onclick="event.stopPropagation()">
+    <div class="picker-header">
+      <span class="picker-title">React</span>
+      <button class="picker-close" onclick="closePicker()">✕</button>
+    </div>
+    <div class="picker-grid">
+      <!-- All emojis -->
+    </div>
+  </div>
+</div>
+
+<!-- ── TOAST CONTAINER ────────────────────────────────────── -->
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+const ALL_EMOJIS = ["👍","❤️","😂","😮","😢","🔥","🎉","👏","😍","🤩","😭","💀","🙏","😤","🥹","✨","🎵","💯","🤯","👀","💪","🫶","🥳","🤣"];
+let nickname = "";
+let chatOpen = false;
+let unread = 0;
+
+// ── Emoji picker populate
+const grid = document.querySelector('.picker-grid');
+ALL_EMOJIS.forEach(em => {
+  const btn = document.createElement('button');
+  btn.className = 'picker-emoji';
+  btn.textContent = em;
+  btn.onclick = () => { sendEmoji(em); closePicker(); };
+  grid.appendChild(btn);
+});
+
+// ── Nickname
+const nicknameInput = document.getElementById('nicknameInput');
+const joinBtn = document.getElementById('joinBtn');
+nicknameInput.addEventListener('input', () => {
+  joinBtn.disabled = !nicknameInput.value.trim();
+});
+nicknameInput.addEventListener('keydown', e => { if (e.key === 'Enter') joinRoom(); });
+
+function joinRoom() {
+  const name = nicknameInput.value.trim();
+  if (!name) return;
+  nickname = name;
+  document.getElementById('chatNick').textContent = name;
+  document.getElementById('selfNick').textContent = name;
+  document.querySelector('.msg-wrap.self .msg-nick').textContent = name;
+  document.getElementById('nicknameModal').classList.add('hidden');
+  showToast('👋 Joined as ' + name, 'success');
+  setUnread(3); // demo
+}
+
+// ── Chat
+function toggleChat() {
+  chatOpen = !chatOpen;
+  document.getElementById('chatPanel').classList.toggle('open', chatOpen);
+  document.getElementById('chatBackdrop').classList.toggle('open', chatOpen);
+  if (chatOpen) setUnread(0);
+}
+
+function setUnread(n) {
+  unread = n;
+  const badge = document.getElementById('unreadBadge');
+  badge.style.display = n > 0 ? 'flex' : 'none';
+  badge.textContent = n > 9 ? '9+' : n;
+}
+
+function sendMessage() {
+  const input = document.getElementById('chatInput');
+  const text = input.value.trim();
+  if (!text) return;
+  addMessage(nickname || 'You', text, true);
+  input.value = '';
+  document.getElementById('sendBtn').disabled = true;
+  // simulate reply
+  setTimeout(() => {
+    const replies = ['😂', 'no way!', 'omg yes!!', '🔥🔥', 'haha same', '👍👍'];
+    const names = ['Alex','Minh','Sara'];
+    addMessage(names[Math.floor(Math.random()*names.length)], replies[Math.floor(Math.random()*replies.length)], false);
+    if (!chatOpen) setUnread(unread + 1);
+  }, 800 + Math.random() * 600);
+}
+
+function addMessage(from, text, self) {
+  const msgs = document.getElementById('chatMessages');
+  const wrap = document.createElement('div');
+  wrap.className = 'msg-wrap ' + (self ? 'self' : 'other');
+  wrap.innerHTML = `
+    <span class="msg-nick">${from}</span>
+    <div class="msg-bubble">${text}</div>
+  `;
+  msgs.appendChild(wrap);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+// ── Emoji reactions
+function sendEmoji(emoji) {
+  spawnFloat(emoji);
+}
+
+function spawnFloat(emoji) {
+  const container = document.getElementById('floatingEmojis');
+  const el = document.createElement('div');
+  el.className = 'float-emoji';
+  el.textContent = emoji;
+  el.style.left = (10 + Math.random() * 80) + '%';
+  el.style.animationDelay = '0s';
+  container.appendChild(el);
+  setTimeout(() => el.remove(), 3100);
+}
+
+// Long-press logic for emoji buttons
+document.querySelectorAll('.emoji-btn').forEach(btn => {
+  let timer = null;
+  const down = () => { timer = setTimeout(() => { timer = null; openPicker(); }, 500); };
+  const up = () => { if (timer) { clearTimeout(timer); timer = null; sendEmoji(btn.textContent); } };
+  const leave = () => { if (timer) { clearTimeout(timer); timer = null; } };
+  btn.addEventListener('mousedown', down);
+  btn.addEventListener('mouseup', up);
+  btn.addEventListener('mouseleave', leave);
+  btn.addEventListener('touchstart', e => { e.preventDefault(); down(); });
+  btn.addEventListener('touchend', e => { e.preventDefault(); up(); });
+  btn.onclick = () => {}; // handled above
+});
+
+// ── Emoji picker
+function openPicker()  { document.getElementById('pickerBackdrop').classList.add('open'); }
+function closePicker() { document.getElementById('pickerBackdrop').classList.remove('open'); }
+
+// ── Room code copy
+function copyRoom() {
+  navigator.clipboard.writeText(window.location.href).catch(()=>{});
+  showToast('🔗 Room link copied!', 'success');
+}
+
+// ── Toast
+function showToast(msg, type='') {
+  const c = document.getElementById('toastContainer');
+  const t = document.createElement('div');
+  t.className = 'toast ' + type;
+  t.textContent = msg;
+  c.appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+
+// Demo floating emojis on load
+setTimeout(() => {
+  ['🎉','🔥','❤️'].forEach((e,i) => setTimeout(() => spawnFloat(e), i * 400));
+}, 1500);
+</script>
+</body>
+</html>

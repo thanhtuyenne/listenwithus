@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Demo 03 — Share Room Modal</title>
+<!--
+  DEMO 03: SHARE ROOM MODAL
+  ──────────────────────────
+  Screens covered:
+    A) Share modal — room code, copy link, QR code placeholder
+    B) Copied feedback state
+    C) Toast / confirmation
+
+  Practice focus:
+    - Modal with tabs (Link / QR)
+    - Copy-to-clipboard UX
+    - QR code (CSS grid placeholder or canvas)
+    - Smooth feedback animations
+-->
+<style>
+*, *::before, *::after { box-sizing: border-box; margin:0; padding:0; }
+:root {
+  --bg:      #03071a;
+  --bg-900:  #0d1117;
+  --bg-800:  #111827;
+  --bg-700:  #1f2937;
+  --bg-600:  #374151;
+  --green:   #22c55e;
+  --green-d: #16a34a;
+  --sky:     #38bdf8;
+  --text-1:  #f9fafb;
+  --text-2:  #9ca3af;
+  --text-3:  #6b7280;
+  --text-4:  #4b5563;
+}
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text-1);
+  min-height: 100vh;
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+}
+
+/* Room page mock behind modal */
+.room-mock {
+  position: fixed; inset: 0;
+  background: var(--bg);
+  display: flex; flex-direction: column;
+  filter: blur(3px);
+  pointer-events: none;
+  opacity: 0.6;
+}
+.mock-nav {
+  height: 60px; background: var(--bg-900);
+  border-bottom: 1px solid var(--bg-700);
+  display: flex; align-items: center; padding: 0 24px; gap: 12px;
+}
+.mock-logo { flex:1; text-align:center; font-size:18px; font-weight:800; color:var(--green); letter-spacing:3px; }
+.mock-body {
+  flex:1; display:flex; flex-direction:column;
+  align-items:center; padding:20px; gap:16px;
+}
+.mock-player {
+  width:100%; max-width:800px; aspect-ratio:16/9;
+  background: var(--bg-900);
+  border:1px solid var(--bg-700); border-radius:12px;
+}
+
+/* ── MODAL ───────────────────────────────────────────────────── */
+.overlay {
+  position: fixed; inset: 0; z-index: 50;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(6px);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+}
+
+.modal {
+  width: 100%; max-width: 440px;
+  background: var(--bg-800);
+  border: 1px solid var(--bg-600);
+  border-radius: 24px;
+  overflow: hidden;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.7);
+}
+
+/* Header */
+.modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 20px 24px 0;
+}
+.modal-title {
+  font-size: 16px; font-weight: 700; color: var(--text-1);
+  display: flex; align-items: center; gap: 8px;
+}
+.modal-close {
+  background: var(--bg-700); border: none; color: var(--text-3);
+  width: 30px; height: 30px; border-radius: 50%;
+  font-size: 14px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.2s, color 0.2s;
+}
+.modal-close:hover { background: var(--bg-600); color: var(--text-1); }
+
+/* Tabs */
+.tabs {
+  display: flex; gap: 0;
+  margin: 20px 24px 0;
+  background: var(--bg-700);
+  border-radius: 10px; overflow: hidden;
+  padding: 3px;
+}
+.tab {
+  flex: 1; padding: 7px; text-align: center;
+  font-size: 13px; font-weight: 500; color: var(--text-2);
+  cursor: pointer; border-radius: 8px;
+  transition: background 0.2s, color 0.2s;
+  border: none; background: none; font-family: inherit;
+}
+.tab.active { background: var(--bg-800); color: var(--text-1); box-shadow: 0 1px 4px rgba(0,0,0,0.3); }
+
+/* Tab content */
+.tab-content { padding: 20px 24px 24px; }
+.tab-pane { display: none; }
+.tab-pane.show { display: block; }
+
+/* ── LINK TAB ───────────────────────────────────────────────── */
+.room-code-label {
+  font-size: 11px; font-weight: 600; color: var(--text-3);
+  letter-spacing: 1px; text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+/* Room code display */
+.code-box {
+  background: var(--bg-900);
+  border: 1px solid var(--bg-600);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px;
+}
+.code-value {
+  font-size: 24px; font-weight: 800;
+  color: var(--green); letter-spacing: 4px;
+  font-variant-numeric: tabular-nums;
+}
+.copy-code-btn {
+  background: var(--bg-700); border: none; border-radius: 8px;
+  color: var(--text-2); font-size: 12px; font-weight: 600;
+  padding: 6px 12px; cursor: pointer; font-family: inherit;
+  transition: background 0.2s, color 0.2s;
+  white-space: nowrap;
+}
+.copy-code-btn:hover { background: var(--bg-600); color: var(--text-1); }
+.copy-code-btn.copied { background: #052e16; color: var(--green); border: 1px solid #14532d; }
+
+/* Full URL row */
+.url-row {
+  display: flex; gap: 8px; align-items: center;
+  margin-bottom: 20px;
+}
+.url-display {
+  flex: 1; padding: 10px 12px;
+  background: var(--bg-700);
+  border: 1px solid var(--bg-600);
+  border-radius: 8px;
+  font-size: 12px; color: var(--text-3);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.copy-link-btn {
+  height: 40px; padding: 0 16px;
+  background: var(--green); border: none; border-radius: 8px;
+  color: #fff; font-size: 13px; font-weight: 700;
+  cursor: pointer; font-family: inherit; white-space: nowrap;
+  transition: background 0.2s;
+  display: flex; align-items: center; gap: 6px;
+}
+.copy-link-btn:hover { background: var(--green-d); }
+.copy-link-btn.copied { background: #052e16; color: var(--green); border: 1px solid #14532d; }
+
+/* Divider */
+.or-divider {
+  display: flex; align-items: center; gap: 10px;
+  color: var(--text-4); font-size: 12px; margin-bottom: 16px;
+}
+.or-divider::before, .or-divider::after { content:''; flex:1; height:1px; background: var(--bg-600); }
+
+/* Share buttons */
+.share-btns { display: flex; gap: 8px; }
+.share-btn {
+  flex: 1; height: 40px;
+  background: var(--bg-700); border: 1px solid var(--bg-600);
+  border-radius: 8px; color: var(--text-2);
+  font-size: 13px; cursor: pointer; font-family: inherit;
+  transition: background 0.2s, color 0.2s;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+.share-btn:hover { background: var(--bg-600); color: var(--text-1); }
+
+/* ── QR TAB ─────────────────────────────────────────────────── */
+.qr-wrap {
+  display: flex; flex-direction: column; align-items: center; gap: 16px;
+}
+
+/* CSS QR code art (decorative) */
+.qr-art {
+  width: 200px; height: 200px;
+  background: #fff; border-radius: 16px;
+  padding: 16px;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  grid-template-rows: repeat(7, 1fr);
+  gap: 2px;
+}
+.qr-cell { border-radius: 2px; }
+.qr-dark { background: #0a0a0a; }
+.qr-light { background: transparent; }
+
+.qr-note { font-size: 13px; color: var(--text-3); text-align: center; line-height: 1.5; }
+.qr-url  { font-size: 12px; color: var(--text-4); font-family: monospace; }
+
+.btn-download {
+  width: 100%; height: 42px;
+  background: var(--bg-700); border: 1px solid var(--bg-600);
+  border-radius: 10px; color: var(--text-2); font-size: 13px;
+  font-weight: 500; cursor: pointer; font-family: inherit;
+  transition: background 0.2s, color 0.2s;
+}
+.btn-download:hover { background: var(--bg-600); color: var(--text-1); }
+
+/* ── TOAST ─────────────────────────────────────────────────── */
+.toast-area {
+  position: fixed; bottom: 28px; left: 50%;
+  transform: translateX(-50%);
+  z-index: 100; pointer-events: none;
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+}
+.toast {
+  background: var(--bg-800); border: 1px solid var(--green);
+  color: var(--green); font-size: 13px; font-weight: 600;
+  padding: 10px 20px; border-radius: 20px;
+  box-shadow: 0 4px 20px rgba(34,197,94,0.2);
+  animation: popIn 0.25s ease-out, fadeOut 0.3s ease-in 2s forwards;
+  white-space: nowrap;
+}
+@keyframes popIn   { from { opacity:0; transform:scale(0.85) translateY(8px); } to { opacity:1; transform:scale(1); } }
+@keyframes fadeOut { to   { opacity:0; transform:translateY(6px); } }
+
+/* Confetti-like sparkle after copy */
+.sparkle {
+  position: fixed; pointer-events: none; z-index: 200;
+  font-size: 20px;
+  animation: sparkleUp 1s ease-out forwards;
+}
+@keyframes sparkleUp {
+  0%   { opacity:1; transform: translateY(0) scale(1); }
+  100% { opacity:0; transform: translateY(-60px) scale(0.5); }
+}
+</style>
+</head>
+<body>
+
+<!-- Room mock behind -->
+<div class="room-mock">
+  <div class="mock-nav">
+    <span style="color:#f87171;font-size:13px;font-weight:700">← LEAVE</span>
+    <div class="mock-logo">LISTEN WITH US</div>
+  </div>
+  <div class="mock-body">
+    <div class="mock-player"></div>
+  </div>
+</div>
+
+<!-- Overlay + Modal -->
+<div class="overlay" onclick="handleOverlayClick(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+
+    <!-- Header -->
+    <div class="modal-header">
+      <div class="modal-title">🔗 Share this room</div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('link', this)">Link</button>
+      <button class="tab" onclick="switchTab('qr', this)">QR Code</button>
+    </div>
+
+    <!-- Tab content -->
+    <div class="tab-content">
+
+      <!-- LINK TAB -->
+      <div class="tab-pane show" id="pane-link">
+        <div class="room-code-label">Room Code</div>
+        <div class="code-box">
+          <span class="code-value" id="codeDisplay">A3F9C2B1</span>
+          <button class="copy-code-btn" id="copyCodeBtn" onclick="copyCode()">Copy code</button>
+        </div>
+
+        <div class="room-code-label" style="margin-top:14px">Full Link</div>
+        <div class="url-row">
+          <div class="url-display" id="urlDisplay">https://listenwithus.app/room/a3f9c2b1</div>
+          <button class="copy-link-btn" id="copyLinkBtn" onclick="copyLink()">
+            <span id="copyLinkIcon">⎘</span>
+            <span id="copyLinkLabel">Copy link</span>
+          </button>
+        </div>
+
+        <div class="or-divider">share via</div>
+        <div class="share-btns">
+          <button class="share-btn" onclick="showToast('Opened in Messenger')">💬 Messenger</button>
+          <button class="share-btn" onclick="showToast('Opened in Telegram')">✈️ Telegram</button>
+          <button class="share-btn" onclick="showToast('Link copied for WhatsApp')">📱 WhatsApp</button>
+        </div>
+      </div>
+
+      <!-- QR TAB -->
+      <div class="tab-pane" id="pane-qr">
+        <div class="qr-wrap">
+          <div class="qr-art" id="qrArt"></div>
+          <div class="qr-note">
+            Scan to join the room instantly<br/>
+            <span class="qr-url">listenwithus.app/room/a3f9c2b1</span>
+          </div>
+          <button class="btn-download" onclick="showToast('QR image saved!')">⬇ Save QR Image</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Trigger button (shown when modal is closed) -->
+<button id="openBtn" style="
+  display:none; position:fixed; bottom:90px; right:28px; z-index:40;
+  padding:10px 20px; background:var(--bg-800); border:1px solid var(--bg-600);
+  border-radius:20px; color:var(--text-1); font-size:13px; font-family:inherit;
+  cursor:pointer;" onclick="openModal()">
+  🔗 Open Share Modal
+</button>
+
+<!-- Toast area -->
+<div class="toast-area" id="toastArea"></div>
+
+<script>
+// ── Build decorative QR ───────────────────────────────────────
+const qrPattern = [
+  1,1,1,1,1,1,1,
+  1,0,0,0,0,0,1,
+  1,0,1,0,1,0,1,
+  1,0,0,1,0,0,1,
+  1,0,1,0,1,0,1,
+  1,0,0,0,0,0,1,
+  1,1,1,1,1,1,1,
+];
+const qrArt = document.getElementById('qrArt');
+// Extend to full 21x21 feel in 7x7 grid (simplified)
+qrPattern.forEach(v => {
+  const cell = document.createElement('div');
+  cell.className = 'qr-cell ' + (v ? 'qr-dark' : 'qr-light');
+  qrArt.appendChild(cell);
+});
+
+// ── Tabs ──────────────────────────────────────────────────────
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('show'));
+  btn.classList.add('active');
+  document.getElementById('pane-' + name).classList.add('show');
+}
+
+// ── Copy actions ──────────────────────────────────────────────
+function copyCode() {
+  const code = document.getElementById('codeDisplay').textContent;
+  navigator.clipboard.writeText(code).catch(()=>{});
+  const btn = document.getElementById('copyCodeBtn');
+  btn.textContent = '✓ Copied!';
+  btn.classList.add('copied');
+  showToast('✓ Room code copied!');
+  spawnSparkles(btn);
+  setTimeout(() => { btn.textContent = 'Copy code'; btn.classList.remove('copied'); }, 2500);
+}
+
+function copyLink() {
+  const url = document.getElementById('urlDisplay').textContent;
+  navigator.clipboard.writeText(url).catch(()=>{});
+  const btn = document.getElementById('copyLinkBtn');
+  const icon = document.getElementById('copyLinkIcon');
+  const label = document.getElementById('copyLinkLabel');
+  icon.textContent = '✓';
+  label.textContent = 'Copied!';
+  btn.classList.add('copied');
+  showToast('✓ Room link copied!');
+  spawnSparkles(btn);
+  setTimeout(() => {
+    icon.textContent = '⎘';
+    label.textContent = 'Copy link';
+    btn.classList.remove('copied');
+  }, 2500);
+}
+
+// ── Sparkle effect ────────────────────────────────────────────
+function spawnSparkles(el) {
+  const rect = el.getBoundingClientRect();
+  ['✨','🎉','⭐','✨'].forEach((ch, i) => {
+    const s = document.createElement('div');
+    s.className = 'sparkle';
+    s.textContent = ch;
+    s.style.left = (rect.left + rect.width/2 + (Math.random()-0.5)*60) + 'px';
+    s.style.top  = (rect.top  - 10) + 'px';
+    s.style.animationDelay = (i * 0.08) + 's';
+    document.body.appendChild(s);
+    setTimeout(() => s.remove(), 1200);
+  });
+}
+
+// ── Toast ─────────────────────────────────────────────────────
+function showToast(msg) {
+  const area = document.getElementById('toastArea');
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  area.appendChild(t);
+  setTimeout(() => t.remove(), 2500);
+}
+
+// ── Modal open/close ──────────────────────────────────────────
+const overlay = document.querySelector('.overlay');
+function closeModal() {
+  overlay.style.display = 'none';
+  document.getElementById('openBtn').style.display = 'block';
+}
+function openModal() {
+  overlay.style.display = 'flex';
+  document.getElementById('openBtn').style.display = 'none';
+}
+function handleOverlayClick(e) {
+  if (e.target === overlay) closeModal();
+}
+</script>
+</body>
+</html>

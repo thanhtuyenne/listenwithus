@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Demo 02 — Room Entry & Empty State</title>
+<!--
+  DEMO 02: ROOM ENTRY + EMPTY STATE
+  ───────────────────────────────────
+  Screens covered:
+    A) Nickname modal — with room context visible behind (blurred)
+    B) Empty state HOST   — no video loaded yet, prompt to load
+    C) Empty state VIEWER — waiting for host to start
+
+  Practice focus:
+    - Backdrop blur on modal
+    - Avatar color selection
+    - Conditional UI (host vs viewer)
+    - Empty state illustration with CSS
+    - Tab / role switcher
+-->
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg:       #03071a;
+  --bg-900:   #0d1117;
+  --bg-800:   #111827;
+  --bg-700:   #1f2937;
+  --bg-600:   #374151;
+  --green:    #22c55e;
+  --green-d:  #16a34a;
+  --sky:      #38bdf8;
+  --yellow:   #facc15;
+  --red:      #f87171;
+  --text-1:   #f9fafb;
+  --text-2:   #9ca3af;
+  --text-3:   #6b7280;
+  --text-4:   #4b5563;
+}
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text-1);
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+/* ── ROLE SWITCHER (demo only) ───────────────────────────────── */
+.demo-switcher {
+  position: fixed; top: 12px; left: 50%; transform: translateX(-50%);
+  z-index: 200;
+  display: flex; gap: 0;
+  background: var(--bg-800);
+  border: 1px solid var(--bg-600);
+  border-radius: 10px; overflow: hidden;
+  font-size: 12px;
+}
+.demo-tab {
+  padding: 7px 16px; cursor: pointer;
+  background: none; border: none; color: var(--text-2);
+  font-family: inherit; font-size: 12px; font-weight: 500;
+  transition: background 0.2s, color 0.2s;
+}
+.demo-tab.active { background: var(--bg-600); color: var(--text-1); }
+
+/* ── NAVBAR (background, blurred under modal) ─────────────────── */
+.navbar {
+  height: 60px;
+  background: var(--bg-900);
+  border-bottom: 1px solid var(--bg-700);
+  display: flex; align-items: center; padding: 0 24px; gap: 12px;
+}
+.logo { flex:1; text-align:center; font-size:18px; font-weight:800; color: var(--green); letter-spacing:3px; }
+
+/* ── ROOM PAGE BG (behind the modal) ────────────────────────── */
+.room-bg {
+  flex: 1;
+  display: flex; flex-direction: column;
+  align-items: center; padding: 24px;
+  gap: 16px;
+  filter: blur(0px);
+  transition: filter 0.3s;
+}
+.room-bg.blurred { filter: blur(4px); pointer-events: none; }
+.video-ghost {
+  width: 100%; max-width: 860px;
+  aspect-ratio: 16/9;
+  background: var(--bg-900);
+  border: 1px solid var(--bg-700);
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* ── MODAL OVERLAY ───────────────────────────────────────────── */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 50;
+  background: rgba(0,0,0,0.75);
+  backdrop-filter: blur(8px);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+  transition: opacity 0.3s;
+}
+.modal-overlay.hidden { opacity: 0; pointer-events: none; }
+
+.modal-card {
+  width: 100%; max-width: 400px;
+  background: var(--bg-800);
+  border: 1px solid var(--bg-600);
+  border-radius: 24px;
+  padding: 36px 32px 32px;
+  display: flex; flex-direction: column;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.7);
+  transform: scale(1);
+  transition: transform 0.3s;
+}
+.modal-overlay.hidden .modal-card { transform: scale(0.94); }
+
+/* Room badge at top of modal */
+.room-badge {
+  align-self: center;
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 14px;
+  background: #0f172a;
+  border: 1px solid #1e3a5f;
+  border-radius: 20px;
+  font-size: 12px; color: var(--sky);
+  margin-bottom: 20px;
+}
+
+.modal-title { font-size: 22px; font-weight: 800; color: var(--green); text-align: center; margin-bottom: 4px; }
+.modal-sub   { font-size: 13px; color: var(--text-3); text-align: center; margin-bottom: 24px; }
+
+/* Avatar row */
+.avatar-row {
+  display: flex; align-items: center; gap: 14px;
+  margin-bottom: 16px;
+}
+.avatar-preview {
+  width: 52px; height: 52px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; font-weight: 700;
+  color: #fff; flex-shrink: 0;
+  transition: background 0.3s;
+  border: 2px solid rgba(255,255,255,0.1);
+  user-select: none;
+}
+.color-swatches {
+  display: flex; gap: 6px; flex-wrap: wrap;
+}
+.swatch {
+  width: 22px; height: 22px; border-radius: 50%;
+  cursor: pointer; border: 2px solid transparent;
+  transition: transform 0.15s, border-color 0.15s;
+}
+.swatch:hover   { transform: scale(1.2); }
+.swatch.active  { border-color: #fff; transform: scale(1.15); }
+
+.modal-input {
+  width: 100%; height: 48px;
+  background: var(--bg-700);
+  border: 1.5px solid var(--bg-600);
+  border-radius: 12px;
+  padding: 0 14px;
+  color: var(--text-1); font-size: 14px; font-family: inherit;
+  outline: none; margin-bottom: 14px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.modal-input::placeholder { color: var(--text-4); }
+.modal-input:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(34,197,94,0.12); }
+
+.modal-btn {
+  width: 100%; height: 48px;
+  background: var(--green); border: none; border-radius: 12px;
+  color: #fff; font-size: 14px; font-weight: 700;
+  cursor: pointer; font-family: inherit;
+  transition: background 0.2s, transform 0.1s;
+}
+.modal-btn:hover { background: var(--green-d); }
+.modal-btn:active { transform: scale(0.98); }
+.modal-btn:disabled { background: var(--bg-600); color: var(--text-4); cursor: default; }
+
+.modal-note {
+  font-size: 11px; color: var(--text-4);
+  text-align: center; margin-top: 12px;
+}
+
+/* ── EMPTY STATES ────────────────────────────────────────────── */
+.empty-page {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  padding: 40px 24px;
+  min-height: calc(100vh - 60px);
+  text-align: center;
+}
+.empty-page.show { display: flex; }
+
+/* CSS Video screen illustration */
+.screen-art {
+  width: 280px; height: 158px;
+  background: var(--bg-900);
+  border: 1px solid var(--bg-600);
+  border-radius: 12px;
+  margin-bottom: 32px;
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+}
+.screen-art::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, #0f0f0f, #0a0a12);
+}
+.screen-art-icon {
+  position: relative; z-index: 1;
+  font-size: 48px; opacity: 0.15;
+}
+.screen-art-pulse {
+  position: absolute; z-index: 1;
+  width: 64px; height: 64px; border-radius: 50%;
+  border: 2px solid rgba(34,197,94,0.2);
+  animation: ripple 2.5s ease-out infinite;
+}
+.screen-art-pulse:nth-child(2) { animation-delay: 0.8s; }
+.screen-art-pulse:nth-child(3) { animation-delay: 1.6s; }
+@keyframes ripple {
+  0%   { transform: scale(0.6); opacity: 0.6; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+
+/* Stand */
+.screen-art::after {
+  content: '';
+  position: absolute; bottom: -18px; left: 50%;
+  transform: translateX(-50%);
+  width: 60px; height: 2px;
+  background: var(--bg-600); border-radius: 1px;
+}
+
+.empty-title { font-size: 22px; font-weight: 800; color: var(--text-1); margin-bottom: 8px; }
+.empty-sub   { font-size: 14px; color: var(--text-2); max-width: 360px; line-height: 1.6; margin-bottom: 28px; }
+
+/* Load video form (host only) */
+.load-form {
+  display: flex; gap: 8px;
+  width: 100%; max-width: 480px;
+  margin-bottom: 16px;
+}
+.load-input {
+  flex: 1; height: 48px;
+  background: var(--bg-900);
+  border: 1.5px solid var(--green);
+  border-radius: 10px;
+  padding: 0 14px;
+  color: var(--text-1); font-size: 14px; font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.load-input::placeholder { color: var(--text-4); }
+.load-input:focus { border-color: #4ade80; box-shadow: 0 0 0 3px rgba(34,197,94,0.1); }
+.load-btn {
+  height: 48px; padding: 0 22px;
+  background: var(--green); border: none; border-radius: 10px;
+  color: #fff; font-size: 14px; font-weight: 700;
+  cursor: pointer; font-family: inherit;
+  transition: background 0.2s;
+}
+.load-btn:hover { background: var(--green-d); }
+
+/* Waiting pulse (viewer) */
+.wait-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 20px;
+  background: var(--bg-900);
+  border: 1px solid var(--bg-700);
+  border-radius: 20px;
+  font-size: 13px; color: var(--text-2);
+}
+.wait-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--green);
+  animation: blink 1.2s ease-in-out infinite;
+}
+@keyframes blink { 0%,100%{opacity:1;} 50%{opacity:0.2;} }
+
+/* Members row */
+.members-row {
+  display: flex; align-items: center; gap: -8px; /* overlap */
+  margin-top: 12px;
+}
+.member-av {
+  width: 32px; height: 32px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700; color: #fff;
+  border: 2px solid var(--bg);
+  margin-left: -8px;
+}
+.member-av:first-child { margin-left: 0; }
+.members-count { font-size: 12px; color: var(--text-3); margin-left: 8px; }
+</style>
+</head>
+<body>
+
+<!-- Demo tab switcher -->
+<div class="demo-switcher">
+  <button class="demo-tab active" onclick="showState('modal')">A · Nickname Modal</button>
+  <button class="demo-tab" onclick="showState('host')">B · Empty (Host)</button>
+  <button class="demo-tab" onclick="showState('viewer')">C · Empty (Viewer)</button>
+</div>
+
+<!-- Navbar (always visible behind) -->
+<nav class="navbar">
+  <span style="color:var(--red);font-size:13px;font-weight:700;cursor:pointer">← LEAVE</span>
+  <div class="logo">LISTEN WITH US</div>
+  <div style="display:flex;gap:8px;align-items:center;">
+    <span style="font-size:12px;padding:4px 10px;background:#052e16;border:1px solid #14532d;border-radius:20px;color:#22c55e;">● Connected</span>
+    <span style="font-size:12px;padding:4px 10px;background:#0f172a;border:1px solid #1e3a5f;border-radius:20px;color:#38bdf8;">⌂ a3f9c2b1…</span>
+  </div>
+</nav>
+
+<!-- Room page background (ghosted) -->
+<div class="room-bg blurred" id="roomBg">
+  <div class="video-ghost">
+    <span style="font-size:40px;opacity:0.07;">▶</span>
+  </div>
+</div>
+
+<!-- STATE A: Nickname Modal -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal-card">
+    <div class="room-badge">⌂ &nbsp; Room <strong>a3f9c2b1</strong> &nbsp; · &nbsp; 3 watching</div>
+    <div class="modal-title">Hey there! 👋</div>
+    <div class="modal-sub">Pick a nickname and color before joining</div>
+
+    <!-- Avatar preview + color swatches -->
+    <div class="avatar-row">
+      <div class="avatar-preview" id="avatarPreview" style="background:#22c55e;">?</div>
+      <div class="color-swatches" id="swatches"></div>
+    </div>
+
+    <input
+      class="modal-input" id="nickInput"
+      placeholder="Your nickname…" maxlength="24"
+      oninput="onNickChange()" autofocus
+    />
+    <button class="modal-btn" id="joinBtn" disabled onclick="doJoin()">Join Room</button>
+    <p class="modal-note">Your nickname is saved for next time</p>
+  </div>
+</div>
+
+<!-- STATE B: Empty (Host) -->
+<div class="empty-page" id="hostEmpty">
+  <div class="screen-art">
+    <div class="screen-art-pulse"></div>
+    <div class="screen-art-pulse"></div>
+    <div class="screen-art-pulse"></div>
+    <span class="screen-art-icon">▶</span>
+  </div>
+  <h2 class="empty-title">Your room is ready!</h2>
+  <p class="empty-sub">You're the host. Load a YouTube video to start watching together.</p>
+  <div class="load-form">
+    <input class="load-input" placeholder="Paste a YouTube URL or video ID…"/>
+    <button class="load-btn">▶ Load</button>
+  </div>
+  <p style="font-size:12px;color:var(--text-4);">Share the room link so friends can join while you pick a video</p>
+  <div class="members-row" style="margin-top:20px;">
+    <div class="member-av" style="background:#22c55e;">Y</div>
+    <div class="member-av" style="background:#38bdf8;">A</div>
+    <div class="member-av" style="background:#a855f7;">M</div>
+    <span class="members-count">3 in room</span>
+  </div>
+</div>
+
+<!-- STATE C: Empty (Viewer) -->
+<div class="empty-page" id="viewerEmpty">
+  <div class="screen-art">
+    <div class="screen-art-pulse"></div>
+    <div class="screen-art-pulse"></div>
+    <div class="screen-art-pulse"></div>
+    <span class="screen-art-icon">⏳</span>
+  </div>
+  <h2 class="empty-title">Waiting for the host…</h2>
+  <p class="empty-sub">The host is choosing a video. It'll start playing for everyone at the same time.</p>
+  <div class="wait-row">
+    <div class="wait-dot"></div>
+    Alex is the host · picking a video
+  </div>
+  <div class="members-row" style="margin-top:20px;">
+    <div class="member-av" style="background:#22c55e;">A</div>
+    <div class="member-av" style="background:#38bdf8;">Y</div>
+    <div class="member-av" style="background:#a855f7;">M</div>
+    <span class="members-count">3 in room</span>
+  </div>
+</div>
+
+<script>
+const COLORS = ['#22c55e','#38bdf8','#a855f7','#f97316','#f43f5e','#facc15','#06b6d4','#ec4899'];
+let selectedColor = COLORS[0];
+
+// Build swatches
+const swatchContainer = document.getElementById('swatches');
+COLORS.forEach((c, i) => {
+  const s = document.createElement('div');
+  s.className = 'swatch' + (i === 0 ? ' active' : '');
+  s.style.background = c;
+  s.onclick = () => {
+    selectedColor = c;
+    document.querySelectorAll('.swatch').forEach(x => x.classList.remove('active'));
+    s.classList.add('active');
+    updateAvatar();
+  };
+  swatchContainer.appendChild(s);
+});
+
+function updateAvatar() {
+  const av = document.getElementById('avatarPreview');
+  av.style.background = selectedColor;
+  const nick = document.getElementById('nickInput').value.trim();
+  av.textContent = nick ? nick[0].toUpperCase() : '?';
+}
+
+function onNickChange() {
+  document.getElementById('joinBtn').disabled = !document.getElementById('nickInput').value.trim();
+  updateAvatar();
+}
+
+function doJoin() {
+  const nick = document.getElementById('nickInput').value.trim();
+  if (!nick) return;
+  document.getElementById('modalOverlay').classList.add('hidden');
+  document.getElementById('roomBg').classList.remove('blurred');
+  // Switch to host empty state as demo
+  showState('host');
+}
+
+function showState(state) {
+  // Update tabs
+  document.querySelectorAll('.demo-tab').forEach((t, i) => {
+    t.classList.toggle('active', ['modal','host','viewer'][i] === state);
+  });
+
+  document.getElementById('modalOverlay').classList.add('hidden');
+  document.getElementById('hostEmpty').classList.remove('show');
+  document.getElementById('viewerEmpty').classList.remove('show');
+  document.getElementById('roomBg').classList.remove('blurred');
+
+  if (state === 'modal') {
+    document.getElementById('modalOverlay').classList.remove('hidden');
+    document.getElementById('roomBg').classList.add('blurred');
+  } else if (state === 'host') {
+    document.getElementById('hostEmpty').classList.add('show');
+  } else if (state === 'viewer') {
+    document.getElementById('viewerEmpty').classList.add('show');
+  }
+}
+
+// Init avatar
+updateAvatar();
+</script>
+</body>
+</html>
